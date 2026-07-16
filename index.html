@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Game Cacing (Snake)</title>
+<style>
+  * { box-sizing: border-box; touch-action: none; } 
+  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1e1e2f; font-family: sans-serif; color: #fff; }
+  #menu { margin-bottom: 10px; }
+  
+  /* Container agar overlay bisa diposisikan di tengah canvas */
+  #gameContainer { position: relative; display: inline-block; }
+  
+  #gameCanvas { background: #2b2b40; border: 4px solid #4caf50; border-radius: 8px; display: block; max-width: 95vw; }
+  
+  /* CSS untuk membuat overlay tepat di tengah */
+  #overlay { 
+    position: absolute; 
+    top: 50%; left: 50%; 
+    transform: translate(-50%, -50%); 
+    text-align: center; 
+    background: rgba(0,0,0,0.9); 
+    padding: 25px; 
+    border-radius: 12px; 
+    display: none; 
+    width: 200px;
+  }
+  
+  button { padding: 10px 20px; font-size: 16px; border: none; border-radius: 6px; background: #4caf50; color: white; cursor: pointer; margin-top: 15px; }
+  #controls { margin-top: 15px; text-align: center; color: #aaa; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h1>🐛 Snake</h1>
+<div id="menu">
+  Kesulitan: 
+  <select id="difficulty">
+    <option value="easy">Easy</option>
+    <option value="normal" selected>Normal</option>
+    <option value="hard">Hard</option>
+  </select>
+</div>
+
+<div id="info">Skor: <span id="score">0</span> | Rekor: <span id="highscore">0</span></div>
+
+<div id="gameContainer">
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <div id="overlay">
+    <h2 id="overlayTitle">Game Over!</h2>
+    <p id="overlayScore">Skor: 0</p>
+    <button onclick="startGame()">Main Lagi</button>
+  </div>
+</div>
+
+<div id="controls">
+  PC: Panah/WASD | HP: Geser (Swipe) Layar
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const box = 20;
+const cols = 20; const rows = 20;
+let snake, direction, nextDirection, food, score, gameLoop, speed;
+let highscore = Number(localStorage.getItem('snakeHighscore')) || 0;
+document.getElementById('highscore').textContent = highscore;
+
+// Logika Swipe (Analog HP)
+let touchStartX = 0; let touchStartY = 0;
+canvas.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, false);
+
+canvas.addEventListener('touchend', e => {
+  if (!touchStartX || !touchStartY) return;
+  let diffX = e.changedTouches[0].clientX - touchStartX;
+  let diffY = e.changedTouches[0].clientY - touchStartY;
+  
+  if (Math.abs(diffX) > Math.abs(diffY)) { 
+    setDir(diffX > 0 ? 'right' : 'left');
+  } else { 
+    setDir(diffY > 0 ? 'down' : 'up');
+  }
+  touchStartX = 0; touchStartY = 0;
+}, false);
+
+function setDir(d) {
+  const opposite = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  if (opposite[d] !== direction) nextDirection = d;
+}
+
+function startGame() {
+  snake = [{ x: 10, y: 10 }];
+  direction = 'right'; nextDirection = 'right';
+  food = { x: 5, y: 5 }; score = 0;
+  const diff = document.getElementById('difficulty').value;
+  speed = diff === 'easy' ? 150 : (diff === 'hard' ? 70 : 110);
+  document.getElementById('score').textContent = score;
+  document.getElementById('overlay').style.display = 'none';
+  if (gameLoop) clearInterval(gameLoop);
+  gameLoop = setInterval(tick, speed);
+}
+
+document.addEventListener('keydown', e => {
+  const map = { ArrowUp: 'up', w: 'up', ArrowDown: 'down', s: 'down', ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right' };
+  if (map[e.key]) setDir(map[e.key]);
+});
+
+function tick() {
+  direction = nextDirection;
+  let head = { ...snake[0] };
+  if (direction === 'up') head.y--;
+  if (direction === 'down') head.y++;
+  if (direction === 'left') head.x--;
+  if (direction === 'right') head.x++;
+
+  if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows || snake.some(s => s.x === head.x && s.y === head.y)) return endGame();
+
+  snake.unshift(head);
+  if (head.x === food.x && head.y === food.y) {
+    score++; document.getElementById('score').textContent = score;
+    food = { x: Math.floor(Math.random() * cols), y: Math.floor(Math.random() * rows) };
+  } else { snake.pop(); }
+  
+  ctx.fillStyle = '#2b2b40'; ctx.fillRect(0, 0, 400, 400);
+  ctx.fillStyle = '#ff5252'; ctx.fillRect(food.x*box, food.y*box, box-2, box-2);
+  snake.forEach((s, i) => { ctx.fillStyle = i===0 ? '#4caf50' : '#81c784'; ctx.fillRect(s.x*box, s.y*box, box-2, box-2); });
+}
+
+function endGame() {
+  clearInterval(gameLoop);
+  if (score > highscore) { highscore = score; localStorage.setItem('snakeHighscore', highscore); document.getElementById('highscore').textContent = highscore; }
+  document.getElementById('overlayScore').textContent = 'Skor: ' + score;
+  document.getElementById('overlay').style.display = 'block';
+}
+
+startGame();
+</script>
+</body>
+</html>
